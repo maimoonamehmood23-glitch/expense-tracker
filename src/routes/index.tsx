@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import {
   AlignLeft,
@@ -34,6 +34,23 @@ const CATEGORIES = {
 
 type Category = keyof typeof CATEGORIES;
 const CATEGORY_NAMES = Object.keys(CATEGORIES) as Category[];
+
+// static class maps so Tailwind can see them at build time
+const CAT_TINT: Record<Category, string> = {
+  Food: "bg-food/12 text-food",
+  Transport: "bg-transport/12 text-transport",
+  Shopping: "bg-shopping/15 text-shopping",
+  Bills: "bg-bills/12 text-bills",
+  Health: "bg-health/12 text-health",
+};
+
+const CAT_BADGE: Record<Category, string> = {
+  Food: "bg-food/15 text-food",
+  Transport: "bg-transport/15 text-transport",
+  Shopping: "bg-shopping/20 text-shopping",
+  Bills: "bg-bills/15 text-bills",
+  Health: "bg-health/15 text-health",
+};
 
 type Expense = {
   id: string;
@@ -141,12 +158,11 @@ function Index() {
 
   const visible = useMemo(() => {
     const list = expenses.filter((e) => filter === "All" || e.category === filter);
-    const sorted = [...list].sort((a, b) => {
+    return [...list].sort((a, b) => {
       if (sort === "highest") return b.amount - a.amount;
       if (sort === "oldest") return a.date < b.date ? -1 : a.date > b.date ? 1 : 0;
       return a.date > b.date ? -1 : a.date < b.date ? 1 : 0;
     });
-    return sorted;
   }, [expenses, filter, sort]);
 
   const countFor = (c: "All" | Category) =>
@@ -169,7 +185,7 @@ function Index() {
     setErrors({});
   }
 
-  function handleSubmit(ev: React.FormEvent) {
+  function handleSubmit(ev: FormEvent) {
     ev.preventDefault();
     const next: typeof errors = {};
     if (!title.trim()) next.title = "Please enter a title.";
@@ -194,7 +210,13 @@ function Index() {
       cancelEdit();
     } else {
       setExpenses((prev) => [
-        { id: crypto.randomUUID(), title: title.trim(), amount: parsedAmount, category: category as Category, date: today() },
+        {
+          id: crypto.randomUUID(),
+          title: title.trim(),
+          amount: parsedAmount,
+          category: category as Category,
+          date: today(),
+        },
         ...prev,
       ]);
       setTitle("");
@@ -208,7 +230,7 @@ function Index() {
     setExpenses((prev) => prev.filter((e) => e.id !== id));
   }
 
-  const scrollTo = (id: string, nav: typeof navActive) => {
+  const scrollTo = (id: string, nav: "home" | "expenses" | "categories") => {
     setNavActive(nav);
     setSidebarOpen(false);
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -232,18 +254,23 @@ function Index() {
         </button>
       </header>
 
-      <div className="mx-auto flex w-full max-w-[1440px]">
-        <Sidebar
-          open={sidebarOpen}
-          active={navActive}
-          onNavigate={scrollTo}
+      {/* mobile overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-foreground/30 backdrop-blur-sm lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+          aria-hidden="true"
         />
+      )}
+
+      <div className="mx-auto flex w-full max-w-[1440px]">
+        <Sidebar open={sidebarOpen} active={navActive} onNavigate={scrollTo} onClose={() => setSidebarOpen(false)} />
 
         <main className="min-w-0 flex-1 px-4 pb-16 pt-6 sm:px-6 lg:px-10 lg:pt-8">
           {/* Total Expenses card */}
           <section
             id="home"
-            className="hero-gradient shadow-card relative overflow-hidden rounded-3xl border border-border/60"
+            className="hero-gradient shadow-card relative scroll-mt-24 overflow-hidden rounded-3xl border border-border/60"
           >
             <div className="flex flex-wrap items-center gap-6 p-6 sm:p-8">
               <div className="flex items-center gap-5">
@@ -303,7 +330,7 @@ function Index() {
               <div className="grid gap-5 md:grid-cols-[1fr_1fr_1fr_auto] md:items-start md:gap-6">
                 <Field label="Title" error={errors.title} htmlFor="expense-title">
                   <div className="relative">
-                    <FileText className="pointer-events-none absolute left-3.5 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-muted-foreground" />
+                    <FileText className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <input
                       id="expense-title"
                       type="text"
@@ -321,7 +348,7 @@ function Index() {
 
                 <Field label="Amount" error={errors.amount} htmlFor="expense-amount">
                   <div className="relative">
-                    <CircleDollarSign className="pointer-events-none absolute left-3.5 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-muted-foreground" />
+                    <CircleDollarSign className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <input
                       id="expense-amount"
                       type="number"
@@ -345,11 +372,11 @@ function Index() {
                       (() => {
                         const Icon = CATEGORIES[category];
                         return (
-                          <Icon className="pointer-events-none absolute left-3.5 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-foreground/70" />
+                          <Icon className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/70" />
                         );
                       })()
                     ) : (
-                      <Utensils className="pointer-events-none absolute left-3.5 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-muted-foreground" />
+                      <Utensils className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     )}
                     <select
                       id="expense-category"
@@ -382,11 +409,11 @@ function Index() {
                   >
                     {editingId ? (
                       <>
-                        <Pencil className="h-4.5 w-4.5" /> Update Expense
+                        <Pencil className="h-4 w-4" /> Update Expense
                       </>
                     ) : (
                       <>
-                        <Plus className="h-4.5 w-4.5" /> Add Expense
+                        <Plus className="h-4 w-4" /> Add Expense
                       </>
                     )}
                   </button>
@@ -419,16 +446,14 @@ function Index() {
                     className={`inline-flex h-11 items-center gap-2 rounded-full border px-4 text-sm font-semibold transition-all ${
                       active
                         ? "border-primary bg-primary text-primary-foreground shadow-card"
-                        : `border-border bg-card text-foreground/80 hover:bg-accent hover:text-foreground ${c !== "All" ? `text-${c.toLowerCase().replace(/./, (m) => m.toUpperCase())}` : ""}`
+                        : "border-border bg-card text-foreground/80 hover:bg-accent hover:text-foreground"
                     }`}
                   >
-                    <Icon
-                      className={`h-4.5 w-4.5 ${!active && c !== "All" ? `text-${c.toLowerCase()}` : ""}`}
-                    />
+                    <Icon className={`h-4 w-4 ${!active && c !== "All" ? CAT_TINT[c].split(" ")[1] : ""}`} />
                     {c}
                     <span
                       className={`rounded-full px-1.5 text-xs font-bold ${
-                        active ? "bg-white/20" : "bg-muted"
+                        active ? "bg-primary-foreground/20" : "bg-muted"
                       }`}
                     >
                       {countFor(c)}
@@ -495,16 +520,16 @@ function Index() {
                       {visible.map((e, i) => {
                         const Icon = CATEGORIES[e.category];
                         return (
-                          <tr key={e.id} className="group transition-colors hover:bg-accent/40">
+                          <tr key={e.id} className="transition-colors hover:bg-accent/40">
                             <td className="border-b border-border/60 py-4 pr-4 text-muted-foreground">
                               {i + 1}
                             </td>
                             <td className="border-b border-border/60 py-4 pr-4">
                               <span className="flex items-center gap-3">
                                 <span
-                                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-${e.category}/12 text-${e.category}`}
+                                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${CAT_TINT[e.category]}`}
                                 >
-                                  <Icon className="h-4.5 w-4.5" />
+                                  <Icon className="h-4 w-4" />
                                 </span>
                                 <span className="font-semibold">{e.title}</span>
                               </span>
@@ -554,7 +579,7 @@ function Index() {
                       >
                         <div className="flex items-center gap-3">
                           <span
-                            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-${e.category}/12 text-${e.category}`}
+                            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${CAT_TINT[e.category]}`}
                           >
                             <Icon className="h-5 w-5" />
                           </span>
@@ -636,7 +661,7 @@ function Field({
   label: string;
   htmlFor: string;
   error?: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <div>
@@ -652,7 +677,7 @@ function Field({
 function CategoryBadge({ category }: { category: Category }) {
   return (
     <span
-      className={`inline-flex items-center rounded-full bg-${category}/15 px-3 py-1 text-xs font-bold text-${category}`}
+      className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-bold ${CAT_BADGE[category]}`}
     >
       {category}
     </span>
@@ -668,7 +693,7 @@ function IconAction({
   label: string;
   onClick: () => void;
   tone: "primary" | "danger";
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <button
@@ -677,7 +702,9 @@ function IconAction({
       title={label}
       onClick={onClick}
       className={`inline-flex h-9 w-9 items-center justify-center rounded-xl text-white shadow-card transition-all hover:-translate-y-0.5 hover:shadow-lift active:translate-y-0 ${
-        tone === "primary" ? "bg-primary hover:bg-primary/90" : "bg-destructive hover:bg-destructive/90"
+        tone === "primary"
+          ? "bg-primary hover:bg-primary/90"
+          : "bg-destructive hover:bg-destructive/90"
       }`}
     >
       {children}
@@ -701,10 +728,12 @@ function Sidebar({
   open,
   active,
   onNavigate,
+  onClose,
 }: {
   open: boolean;
   active: "home" | "expenses" | "categories";
   onNavigate: (id: string, nav: "home" | "expenses" | "categories") => void;
+  onClose: () => void;
 }) {
   const items = [
     { id: "home", nav: "home" as const, label: "Home", Icon: Home },
@@ -713,85 +742,74 @@ function Sidebar({
   ];
 
   return (
-    <>
-      {/* mobile overlay */}
-      {open && (
+    <aside
+      className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col overflow-y-auto bg-card shadow-lift transition-transform duration-300 lg:sticky lg:top-0 lg:z-auto lg:h-screen lg:w-72 lg:translate-x-0 lg:shadow-none ${
+        open ? "translate-x-0" : "-translate-x-full"
+      }`}
+    >
+      <div className="px-6 pb-6 pt-8">
         <button
           type="button"
-          aria-label="Close menu"
-          onClick={() => onNavigate.__ignore?.()}
-          className="hidden"
-        />
-      )}
-      <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col overflow-y-auto bg-card shadow-lift transition-transform duration-300 lg:sticky lg:top-0 lg:z-auto lg:h-screen lg:w-72 lg:translate-x-0 lg:shadow-none lg:rounded-none ${
-          open ? "translate-x-0" : "-translate-x-full"
-        }`}
-      >
-        <div className="px-6 pb-6 pt-8">
-          <button
-            type="button"
-            onClick={() => onNavigate("home", "home")}
-            className="mx-auto flex w-full flex-col items-center gap-3"
-          >
-            <BrandMark className="h-14 w-14" />
-            <span className="text-2xl font-extrabold tracking-tight">Expense Tracker</span>
-          </button>
-          <p className="mt-1.5 text-center text-sm text-muted-foreground">
-            Track Your Spending
-            <br />
-            Build a Better Tomorrow
-          </p>
-        </div>
-
-        <nav className="flex flex-col gap-2 px-5" aria-label="Main navigation">
-          {items.map(({ id, nav, label, Icon }) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => onNavigate(id, nav)}
-              aria-current={active === nav ? "page" : undefined}
-              className={`flex h-12 items-center gap-3 rounded-2xl px-4 text-sm font-bold transition-all ${
-                active === nav
-                  ? "bg-primary text-primary-foreground shadow-card"
-                  : "text-foreground/75 hover:bg-accent hover:text-foreground"
-              }`}
-            >
-              <Icon className="h-5 w-5" />
-              {label}
-            </button>
-          ))}
-        </nav>
-
-        <div className="mt-auto hidden px-6 pb-8 pt-10 lg:block">
-          <p className="font-hand -rotate-3 text-center text-xl leading-snug text-primary/80">
-            Small steps
-            <br />
-            make big
-            <br />
-            changes ♡
-          </p>
-          <img
-            src={plantImg}
-            alt=""
-            aria-hidden="true"
-            loading="lazy"
-            width={180}
-            height={180}
-            className="mx-auto mt-4 h-36 w-36 object-contain"
-          />
-        </div>
-
-        {/* close affordance on mobile */}
-        <button
-          type="button"
-          onClick={() => onNavigate("home", active)}
-          className="absolute right-4 top-4 rounded-xl border border-border bg-card p-2 text-foreground lg:hidden"
-          aria-label="Close menu"
+          onClick={() => onNavigate("home", "home")}
+          className="mx-auto flex w-full flex-col items-center gap-3"
         >
-          <X className="h-5 w-5" />
+          <BrandMark className="h-14 w-14" />
+          <span className="text-2xl font-extrabold tracking-tight">Expense Tracker</span>
         </button>
-      </aside>
-    </>
+        <p className="mt-1.5 text-center text-sm text-muted-foreground">
+          Track Your Spending
+          <br />
+          Build a Better Tomorrow
+        </p>
+      </div>
+
+      <nav className="flex flex-col gap-2 px-5" aria-label="Main navigation">
+        {items.map(({ id, nav, label, Icon }) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => onNavigate(id, nav)}
+            aria-current={active === nav ? "page" : undefined}
+            className={`flex h-12 items-center gap-3 rounded-2xl px-4 text-sm font-bold transition-all ${
+              active === nav
+                ? "bg-primary text-primary-foreground shadow-card"
+                : "text-foreground/75 hover:bg-accent hover:text-foreground"
+            }`}
+          >
+            <Icon className="h-5 w-5" />
+            {label}
+          </button>
+        ))}
+      </nav>
+
+      <div className="mt-auto hidden px-6 pb-8 pt-10 lg:block">
+        <p className="font-hand -rotate-3 text-center text-xl leading-snug text-primary/80">
+          Small steps
+          <br />
+          make big
+          <br />
+          changes ♡
+        </p>
+        <img
+          src={plantImg}
+          alt=""
+          aria-hidden="true"
+          loading="lazy"
+          width={180}
+          height={180}
+          className="mx-auto mt-4 h-36 w-36 object-contain"
+        />
+      </div>
+
+      {/* close affordance on mobile */}
+      <button
+        type="button"
+        onClick={onClose}
+        className="absolute right-4 top-4 rounded-xl border border-border bg-card p-2 text-foreground lg:hidden"
+        aria-label="Close menu"
+      >
+        <X className="h-5 w-5" />
+      </button>
+    </aside>
   );
 }
