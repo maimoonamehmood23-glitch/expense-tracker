@@ -6,6 +6,7 @@ import {
   ChevronDown,
   CircleDollarSign,
   FileText,
+  Filter,
   HeartPulse,
   Home,
   LayoutGrid,
