@@ -8,3 +8,5 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- Expense Tracker is fully client-side: no backend, all data persists in localStorage (key `expense-tracker.expenses`). Do not add backend services to it.
