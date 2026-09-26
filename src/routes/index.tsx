@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "re
 import { createFileRoute } from "@tanstack/react-router";
 import {
   AlignLeft,
+  CalendarDays,
   CarFront,
   ChevronDown,
   CircleDollarSign,
@@ -100,7 +101,17 @@ function formatDate(iso: string): string {
 }
 
 function today(): string {
-  return new Date().toISOString().slice(0, 10);
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function isValidExpenseDate(iso: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return false;
+  const d = new Date(`${iso}T00:00:00`);
+  return !Number.isNaN(d.getTime());
 }
 
 /* ---------- head ---------- */
@@ -142,7 +153,13 @@ function Index() {
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState<Category | "">("");
-  const [errors, setErrors] = useState<{ title?: string; amount?: string; category?: string }>({});
+  const [date, setDate] = useState(today);
+  const [errors, setErrors] = useState<{
+    title?: string;
+    amount?: string;
+    category?: string;
+    date?: string;
+  }>({});
 
   // load once from localStorage (browser only)
   useEffect(() => {
@@ -166,6 +183,12 @@ function Index() {
     });
   }, [expenses, filter, sort]);
 
+  const filteredTotal = useMemo(
+    () => visible.reduce((sum, e) => sum + e.amount, 0),
+    [visible]
+  );
+  const displayTotal = filter === "All" ? total : filteredTotal;
+
   const countFor = (c: "All" | Category) =>
     c === "All" ? expenses.length : expenses.filter((e) => e.category === c).length;
 
@@ -174,6 +197,7 @@ function Index() {
     setTitle(e.title);
     setAmount(String(e.amount));
     setCategory(e.category);
+    setDate(e.date);
     setErrors({});
     document.getElementById("add-expense")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
@@ -183,6 +207,7 @@ function Index() {
     setTitle("");
     setAmount("");
     setCategory("");
+    setDate(today());
     setErrors({});
   }
 
@@ -197,6 +222,13 @@ function Index() {
       next.amount = "Amount must be greater than zero.";
     }
     if (!category) next.category = "Please pick a category.";
+    if (!date) {
+      next.date = "Please pick a date.";
+    } else if (!isValidExpenseDate(date)) {
+      next.date = "Please enter a valid date.";
+    } else if (date > today()) {
+      next.date = "Date can't be in the future.";
+    }
     setErrors(next);
     if (Object.keys(next).length > 0) return;
 
@@ -204,7 +236,13 @@ function Index() {
       setExpenses((prev) =>
         prev.map((e) =>
           e.id === editingId
-            ? { ...e, title: title.trim(), amount: parsedAmount, category: category as Category }
+            ? {
+                ...e,
+                title: title.trim(),
+                amount: parsedAmount,
+                category: category as Category,
+                date,
+              }
             : e
         )
       );
@@ -216,13 +254,14 @@ function Index() {
           title: title.trim(),
           amount: parsedAmount,
           category: category as Category,
-          date: today(),
+          date,
         },
         ...prev,
       ]);
       setTitle("");
       setAmount("");
       setCategory("");
+      setDate(today());
     }
   }
 
@@ -280,14 +319,19 @@ function Index() {
                 </span>
                 <div>
                   <p className="text-sm font-semibold text-muted-foreground sm:text-base">
-                    Total Expenses
+                    {filter === "All" ? "Total Expenses" : `${filter} Expenses`}
                   </p>
                   <p
                     className="mt-1 text-4xl font-extrabold tracking-tight sm:text-5xl"
                     aria-live="polite"
                   >
-                    $ {total.toLocaleString("en-US", { maximumFractionDigits: 2 })}
+                    $ {displayTotal.toLocaleString("en-US", { maximumFractionDigits: 2 })}
                   </p>
+                  {filter !== "All" && (
+                    <p className="mt-1.5 text-sm font-medium text-muted-foreground">
+                      All categories: {formatAmount(total)}
+                    </p>
+                  )}
                 </div>
               </div>
               <div className="pointer-events-none ml-auto hidden items-end gap-3 md:flex">
@@ -328,7 +372,7 @@ function Index() {
             </div>
 
             <form onSubmit={handleSubmit} noValidate className="mt-6">
-              <div className="grid gap-5 md:grid-cols-[1fr_1fr_1fr_auto] md:items-start md:gap-6">
+              <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-[1fr_1fr_1fr_1fr_auto] xl:items-start xl:gap-5">
                 <Field label="Title" error={errors.title} htmlFor="expense-title">
                   <div className="relative">
                     <FileText className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -401,7 +445,24 @@ function Index() {
                   </div>
                 </Field>
 
-                <div className="flex items-center gap-3 md:pt-[30px]">
+                <Field label="Date" error={errors.date} htmlFor="expense-date">
+                  <div className="relative">
+                    <CalendarDays className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <input
+                      id="expense-date"
+                      type="date"
+                      value={date}
+                      max={today()}
+                      onChange={(ev) => setDate(ev.target.value)}
+                      aria-invalid={!!errors.date}
+                      className={`h-12 w-full rounded-2xl border bg-card pl-11 pr-4 text-sm font-medium outline-none transition-all focus:border-primary focus:ring-4 focus:ring-primary/15 ${
+                        errors.date ? "border-destructive" : "border-input"
+                      }`}
+                    />
+                  </div>
+                </Field>
+
+                <div className="flex items-center gap-3 md:col-span-2 xl:col-span-1 xl:pt-[30px]">
                   <button
                     type="submit"
                     className={`inline-flex h-12 items-center justify-center gap-2 whitespace-nowrap rounded-2xl px-6 text-sm font-bold text-white shadow-card transition-all hover:-translate-y-0.5 hover:shadow-lift active:translate-y-0 ${
